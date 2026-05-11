@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SolScope — Solana Program Analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--bg2:#181c27;--bg3:#1e2333;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.14);
+  --text:#e8eaf0;--text2:#8b92a8;--text3:#555d75;
+  --accent:#378ADD;--green:#1D9E75;--red:#E24B4A;
+  --amber:#BA7517;--purple:#7F77DD;--coral:#D85A30;
+  --mono:'JetBrains Mono','Fira Mono',monospace;
+  --sans:'Inter',system-ui,sans-serif;
+  --r:8px;--rl:12px;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;font-size:14px}
+
+/* ── NAV ── */
+nav{
+  position:sticky;top:0;z-index:200;
+  background:var(--bg);border-bottom:0.5px solid var(--border2);
+  height:52px;display:flex;align-items:center;
+  padding:0 2rem;gap:2rem;
+}
+.nav-logo{font-family:var(--mono);font-size:15px;font-weight:500;color:var(--text);letter-spacing:-0.02em;flex-shrink:0}
+.nav-logo span{color:var(--accent)}
+.nav-tabs{display:flex;gap:4px;flex:1}
+.nav-tab{
+  font-size:12px;color:var(--text3);padding:6px 14px;
+  border-radius:var(--r);cursor:pointer;border:none;background:none;
+  font-family:var(--sans);transition:color .15s,background .15s;white-space:nowrap;
+}
+.nav-tab:hover{color:var(--text2);background:var(--bg2)}
+.nav-tab.active{color:var(--text);background:var(--bg2);border:0.5px solid var(--border2)}
+.nav-badge{font-size:10px;font-weight:500;background:rgba(55,138,221,.12);color:var(--accent);border:0.5px solid rgba(55,138,221,.25);padding:3px 8px;border-radius:4px;letter-spacing:.05em;flex-shrink:0}
+
+/* ── PAGES ── */
+.page{display:none;max-width:900px;margin:0 auto;padding:2.5rem 1.5rem}
+.page.active{display:block}
+
+/* ── PAGE HEADER ── */
+.ph-eyebrow{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px}
+.ph-title{font-size:22px;font-weight:600;letter-spacing:-.02em;margin-bottom:5px}
+.ph-sub{font-size:13px;color:var(--text2);margin-bottom:2rem;line-height:1.6}
+
+/* ── INPUT ROW ── */
+.input-row{display:flex;gap:8px;margin-bottom:10px}
+.input-row input{
+  flex:1;background:var(--bg2);border:0.5px solid var(--border2);
+  border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:12px;
+  padding:0 14px;height:40px;outline:none;transition:border-color .2s;
+}
+.input-row input:focus{border-color:var(--accent)}
+.input-row input::placeholder{color:var(--text3)}
+.btn-primary{
+  background:var(--accent);color:#fff;border:none;border-radius:var(--r);
+  font-size:12px;font-weight:500;padding:0 20px;height:40px;cursor:pointer;white-space:nowrap;
+  transition:opacity .15s;font-family:var(--sans);
+}
+.btn-primary:hover{opacity:.85}
+.btn-primary:disabled{opacity:.35;cursor:not-allowed}
+
+/* ── QUICK PICKS ── */
+.qp-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:2rem;align-items:center}
+.qp-label{font-size:11px;color:var(--text3)}
+.qp-btn{
+  font-family:var(--mono);font-size:11px;color:var(--text2);
+  background:var(--bg2);border:0.5px solid var(--border);
+  border-radius:6px;padding:5px 12px;cursor:pointer;transition:border-color .15s,color .15s;
+}
+.qp-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ── STATUS ── */
+.status-bar{font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:1.5rem;min-height:16px}
+
+/* ── METRIC CARDS ── */
+.metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:2rem}
+.mcard{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--rl);padding:16px 18px}
+.mcard-label{font-size:10px;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px}
+.mcard-val{font-family:var(--mono);font-size:26px;font-weight:500;color:var(--text);line-height:1;margin-bottom:4px}
+.mcard-sub{font-size:11px;color:var(--text3)}
+
+/* ── SECTION ── */
+.section{margin-bottom:2rem}
+.section-label{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px;padding-bottom:8px;border-bottom:0.5px solid var(--border)}
+
+/* ── BAR ROWS ── */
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.bar-name{font-family:var(--mono);font-size:12px;color:var(--text2);min-width:160px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-track{flex:1;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;transition:width .7s cubic-bezier(.4,0,.2,1)}
+.bar-count{font-family:var(--mono);font-size:11px;color:var(--text3);min-width:30px;text-align:right}
+
+/* ── CHART WRAP ── */
+.chart-wrap{position:relative;width:100%;height:180px}
+.legend-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2)}
+.legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+
+/* ── TX TABLE ── */
+.tx-table{border:0.5px solid var(--border);border-radius:var(--rl);overflow:hidden;font-family:var(--mono);font-size:11px}
+.tx-row{display:grid;grid-template-columns:100px 1fr 70px 80px;gap:8px;padding:9px 14px;border-bottom:0.5px solid var(--border);align-items:center}
+.tx-row:last-child{border-bottom:none}
+.tx-head{background:var(--bg3);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+.tx-sig{color:var(--accent);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none}
+.tx-sig:hover{text-decoration:underline}
+.tx-ix{color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tx-cu{color:var(--text3);text-align:right}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:9px;font-weight:500;letter-spacing:.04em}
+.badge-ok{background:rgba(29,158,117,.15);color:#1D9E75}
+.badge-err{background:rgba(226,75,74,.15);color:#E24B4A}
+
+/* ── HEALTH SCORE ── */
+.hs-score-block{display:flex;align-items:center;gap:2rem;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--rl);padding:1.5rem;margin-bottom:1.5rem;flex-wrap:wrap}
+.hs-score-info{flex:1;min-width:180px}
+.hs-score-eyebrow{font-size:10px;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:4px}
+.hs-score-num{font-family:var(--mono);font-size:52px;font-weight:500;line-height:1;margin-bottom:6px}
+.hs-grade{display:inline-block;font-size:12px;font-weight:500;padding:3px 10px;border-radius:6px;margin-bottom:10px}
+.hs-verdict{font-size:13px;color:var(--text2);line-height:1.6}
+.pillars-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:1.5rem}
+.pillar{background:var(--bg2);border-radius:var(--r);padding:14px 16px}
+.pillar-label{font-size:10px;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}
+.pillar-score{font-family:var(--mono);font-size:22px;font-weight:500;color:var(--text);margin-bottom:6px}
+.pillar-bar{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-bottom:6px}
+.pillar-fill{height:100%;border-radius:2px;transition:width .8s cubic-bezier(.4,0,.2,1)}
+.pillar-sub{font-size:11px;color:var(--text3)}
+.alerts{display:flex;flex-direction:column;gap:8px;margin-bottom:2rem}
+.alert{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-left:3px solid}
+.alert-warn{background:rgba(186,117,23,.1);border-color:#BA7517}
+.alert-ok{background:rgba(29,158,117,.1);border-color:#1D9E75}
+.alert-info{background:rgba(55,138,221,.1);border-color:#378ADD}
+.alert-icon{font-size:13px;width:16px;flex-shrink:0;margin-top:1px;font-family:var(--mono)}
+.alert-text{font-size:12px;color:var(--text2);line-height:1.5}
+.alert-text strong{font-weight:500;color:var(--text)}
+
+/* ── EMPTY STATE ── */
+.empty-note{font-size:12px;color:var(--text3);font-family:var(--mono);padding:8px 0}
+
+/* ── HIDDEN ── */
+.hidden{display:none}
+
+/* ── SKELETON LOADER ── */
+.skeleton-wrap{display:none;flex-direction:column;gap:12px;margin-bottom:2rem}
+.skeleton-wrap.active{display:flex}
+.skel{background:linear-gradient(90deg,var(--bg2) 25%,var(--bg3) 50%,var(--bg2) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:var(--r)}
+.skel-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.skel-card{height:80px;border-radius:var(--rl)}
+.skel-bar{height:14px;border-radius:4px}
+.skel-bar.w80{width:80%}.skel-bar.w60{width:60%}.skel-bar.w40{width:40%}.skel-bar.w90{width:90%}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ── SHARE BUTTON ── */
+.share-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-size:11px;color:var(--text3);
+  background:var(--bg2);border:0.5px solid var(--border);
+  border-radius:6px;padding:5px 12px;cursor:pointer;
+  transition:border-color .15s,color .15s;margin-left:auto;
+}
+.share-btn:hover{border-color:var(--accent);color:var(--accent)}
+.share-btn svg{width:12px;height:12px;flex-shrink:0}
+.share-toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--bg3);border:0.5px solid var(--border2);
+  color:var(--text);font-family:var(--mono);font-size:12px;
+  padding:8px 18px;border-radius:8px;opacity:0;
+  transition:opacity .2s,transform .2s;pointer-events:none;z-index:999;
+}
+.share-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── TYPE BADGE (instruction type chip) ── */
+.type-chip{
+  display:inline-block;font-size:9px;font-weight:500;letter-spacing:.04em;
+  padding:2px 7px;border-radius:4px;font-family:var(--mono);
+  background:rgba(55,138,221,.12);color:var(--accent);border:0.5px solid rgba(55,138,221,.2);
+  vertical-align:middle;margin-left:6px;
+}
+
+/* ── ECOSYSTEM EXPLORER ── */
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:2rem}
+@media(max-width:640px){.compare-grid{grid-template-columns:1fr}}
+.compare-panel{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--rl);padding:1.25rem}
+.compare-panel-head{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
+.compare-stat{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:0.5px solid var(--border)}
+.compare-stat:last-child{border-bottom:none}
+.compare-stat-label{font-size:11px;color:var(--text3)}
+.compare-stat-val{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--text)}
+.compare-stat-val.better{color:var(--green)}
+.compare-stat-val.worse{color:var(--red)}
+.compare-winner{text-align:center;margin-top:1.5rem;padding:12px;background:rgba(29,158,117,.08);border:0.5px solid rgba(29,158,117,.2);border-radius:var(--r)}
+.compare-winner p{font-size:12px;color:var(--text2)}
+.compare-winner strong{color:var(--green);font-weight:600}
+.addr-label{font-family:var(--mono);font-size:11px;color:var(--accent);margin-bottom:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── FOOTER ── */
+footer{border-top:0.5px solid var(--border);padding:1.5rem;text-align:center;font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:3rem}
+footer a{color:var(--accent);text-decoration:none}
+</style>
+</head>
+<body>
+
+<!-- ════ NAV ════ -->
+<nav>
+  <span class="nav-logo">Sol<span>Scope</span></span>
+  <div class="nav-tabs">
+    <button class="nav-tab active" id="tab-dashboard" onclick="switchPage('dashboard',this)">Usage Dashboard</button>
+    <button class="nav-tab" id="tab-explorer" onclick="switchPage('explorer',this)">Ecosystem Explorer</button>
+    <button class="nav-tab" id="tab-health" onclick="switchPage('health',this)">Health Score</button>
+  </div>
+  <span class="nav-badge">HACKATHON DEMO</span>
+</nav>
+
+<!-- ════ PAGE 1: USAGE DASHBOARD ════ -->
+<div class="page active" id="page-dashboard">
+  <p class="ph-eyebrow">Feature 1 — Program analytics</p>
+  <h1 class="ph-title">Usage Dashboard</h1>
+  <p class="ph-sub">Paste any Solana program address to analyze instruction frequency, compute unit usage, error rates, and unique callers — live from mainnet.</p>
+
+  <div class="input-row">
+    <input id="d-addr" type="text" value="TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" placeholder="Program address (base58)..." spellcheck="false"/>
+    <button class="btn-primary" id="d-btn" onclick="runDashboard()">Analyze</button>
+  </div>
+  <div class="qp-row">
+    <span class="qp-label">Quick pick:</span>
+    <button class="qp-btn" onclick="dPick('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')">SPL Token</button>
+    <button class="qp-btn" onclick="dPick('whirLbMiicVdio4qvUfM5KAg6Ebn8a1Wbr5yHhu9HuQ')">Orca Whirlpool</button>
+    <button class="qp-btn" onclick="dPick('MFv2hWf31Z9kbCa1snEPYctwafyhdvnV7FZnsebVacA')">Marginfi v2</button>
+    <button class="share-btn" onclick="shareLink('d-addr','dashboard')" title="Copy shareable link">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="3" r="1.5"/><circle cx="4" cy="8" r="1.5"/><circle cx="12" cy="13" r="1.5"/><path d="M5.5 7.1l5-2.7M5.5 8.9l5 2.7"/></svg>
+      Share
+    </button>
+  </div>
+  <p class="status-bar" id="d-status">Enter a program address and click Analyze.</p>
+
+  <!-- Skeleton loader -->
+  <div class="skeleton-wrap" id="d-skeleton">
+    <div class="skel-cards">
+      <div class="skel skel-card"></div><div class="skel skel-card"></div>
+      <div class="skel skel-card"></div><div class="skel skel-card"></div>
+    </div>
+    <div class="skel skel-bar w90" style="height:10px;margin-top:8px"></div>
+    <div class="skel skel-bar w80"></div>
+    <div class="skel skel-bar w60"></div>
+    <div class="skel skel-bar w40"></div>
+  </div>
+
+  <div class="metrics-grid hidden" id="d-metrics">
+    <div class="mcard"><p class="mcard-label">Transactions fetched</p><p class="mcard-val" id="d-m-total">—</p><p class="mcard-sub">last 50 on mainnet</p></div>
+    <div class="mcard"><p class="mcard-label">Success rate</p><p class="mcard-val" id="d-m-success">—</p><p class="mcard-sub" id="d-m-errsub">—</p></div>
+    <div class="mcard"><p class="mcard-label">Unique callers</p><p class="mcard-val" id="d-m-callers">—</p><p class="mcard-sub">distinct wallets</p></div>
+    <div class="mcard"><p class="mcard-label">Avg compute units</p><p class="mcard-val" id="d-m-cu">—</p><p class="mcard-sub">per transaction</p></div>
+  </div>
+
+  <div class="section hidden" id="d-ix-section">
+    <p class="section-label">Instruction frequency</p>
+    <div id="d-ix-bars"></div>
+  </div>
+
+  <div class="section hidden" id="d-chart-section">
+    <p class="section-label">Compute unit distribution</p>
+    <div class="legend-row">
+      <span class="legend-item"><span class="legend-dot" style="background:#1D9E75"></span>Success</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#E24B4A"></span>Error</span>
+    </div>
+    <div class="chart-wrap"><canvas id="d-cu-chart" role="img" aria-label="Bar chart of compute units per transaction, coloured green for success and red for error">CU per transaction.</canvas></div>
+  </div>
+
+  <div class="section hidden" id="d-tx-section">
+    <p class="section-label">Recent transactions</p>
+    <div class="tx-table">
+      <div class="tx-row tx-head"><span>Signature</span><span>Instruction</span><span>Status</span><span style="text-align:right">CU used</span></div>
+      <div id="d-tx-rows"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ PAGE 2: ECOSYSTEM EXPLORER ════ -->
+<div class="page" id="page-explorer">
+  <p class="ph-eyebrow">Feature 2 — Ecosystem comparison</p>
+  <h1 class="ph-title">Ecosystem Explorer</h1>
+  <p class="ph-sub">Compare two Solana programs side-by-side — success rate, compute efficiency, and caller diversity. Fetched live from mainnet.</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">
+    <div class="input-row" style="margin-bottom:0">
+      <input id="e-addr1" type="text" value="whirLbMiicVdio4qvUfM5KAg6Ebn8a1Wbr5yHhu9HuQ" placeholder="Program A address..." spellcheck="false"/>
+    </div>
+    <div class="input-row" style="margin-bottom:0">
+      <input id="e-addr2" type="text" value="MFv2hWf31Z9kbCa1snEPYctwafyhdvnV7FZnsebVacA" placeholder="Program B address..." spellcheck="false"/>
+    </div>
+  </div>
+  <div class="qp-row">
+    <span class="qp-label">Presets:</span>
+    <button class="qp-btn" onclick="ePick('whirLbMiicVdio4qvUfM5KAg6Ebn8a1Wbr5yHhu9HuQ','MFv2hWf31Z9kbCa1snEPYctwafyhdvnV7FZnsebVacA')">Orca vs Marginfi</button>
+    <button class="qp-btn" onclick="ePick('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA','whirLbMiicVdio4qvUfM5KAg6Ebn8a1Wbr5yHhu9HuQ')">SPL Token vs Orca</button>
+    <button class="btn-primary" id="e-btn" onclick="runExplorer()" style="margin-left:auto;flex-shrink:0">Compare</button>
+  </div>
+  <p class="status-bar" id="e-status">Choose two programs and click Compare.</p>
+
+  <!-- Skeleton -->
+  <div class="skeleton-wrap" id="e-skeleton">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="skel skel-bar w90" style="height:18px"></div>
+        <div class="skel skel-bar w80"></div><div class="skel skel-bar w60"></div>
+        <div class="skel skel-bar w70"></div><div class="skel skel-bar w50"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="skel skel-bar w90" style="height:18px"></div>
+        <div class="skel skel-bar w80"></div><div class="skel skel-bar w60"></div>
+        <div class="skel skel-bar w70"></div><div class="skel skel-bar w50"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="e-result" class="hidden">
+    <div class="compare-grid" id="e-panels"></div>
+    <div class="section hidden" id="e-chart-section">
+      <p class="section-label">Compute unit comparison</p>
+      <div class="chart-wrap" style="height:200px"><canvas id="e-chart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ PAGE 3: HEALTH SCORE ════ -->
+<div class="page" id="page-health">
+  <p class="ph-eyebrow">Feature 4 — Program intelligence</p>
+  <h1 class="ph-title">Health Score</h1>
+  <p class="ph-sub">A composite 0–100 score built from four pillars: success rate, compute efficiency, caller diversity, and instruction variety. Scored live from mainnet data.</p>
+
+  <div class="input-row">
+    <input id="h-addr" type="text" value="TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" placeholder="Program address (base58)..." spellcheck="false"/>
+    <button class="btn-primary" id="h-btn" onclick="runHealth()">Score it</button>
+  </div>
+  <div class="qp-row">
+    <span class="qp-label">Quick pick:</span>
+    <button class="qp-btn" onclick="hPick('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')">SPL Token</button>
+    <button class="qp-btn" onclick="hPick('whirLbMiicVdio4qvUfM5KAg6Ebn8a1Wbr5yHhu9HuQ')">Orca Whirlpool</button>
+    <button class="qp-btn" onclick="hPick('MFv2hWf31Z9kbCa1snEPYctwafyhdvnV7FZnsebVacA')">Marginfi v2</button>
+    <button class="share-btn" onclick="shareLink('h-addr','health')" title="Copy shareable link">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="3" r="1.5"/><circle cx="4" cy="8" r="1.5"/><circle cx="12" cy="13" r="1.5"/><path d="M5.5 7.1l5-2.7M5.5 8.9l5 2.7"/></svg>
+      Share
+    </button>
+  </div>
+  <p class="status-bar" id="h-status">Enter a program address and click Score it.</p>
+
+  <!-- Skeleton -->
+  <div class="skeleton-wrap" id="h-skeleton">
+    <div style="display:flex;gap:2rem;align-items:center">
+      <div class="skel" style="width:120px;height:120px;border-radius:50%;flex-shrink:0"></div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:10px">
+        <div class="skel skel-bar w60" style="height:40px"></div>
+        <div class="skel skel-bar w80"></div>
+        <div class="skel skel-bar w50"></div>
+      </div>
+    </div>
+    <div class="skel-cards" style="margin-top:12px">
+      <div class="skel skel-card"></div><div class="skel skel-card"></div>
+      <div class="skel skel-card"></div><div class="skel skel-card"></div>
+    </div>
+  </div>
+
+  <div id="h-result" class="hidden">
+
+    <div class="hs-score-block">
+      <svg id="h-dial" width="120" height="120" viewBox="0 0 120 120" role="img" aria-label="Health score dial gauge">
+        <circle cx="60" cy="60" r="50" fill="none" stroke="#1e2333" stroke-width="10"/>
+        <circle cx="60" cy="60" r="50" fill="none" stroke-width="10" id="h-dial-fill"
+          stroke="#1D9E75" stroke-linecap="round"
+          stroke-dasharray="314" stroke-dashoffset="314"
+          transform="rotate(-90 60 60)" style="transition:stroke-dashoffset 1s ease,stroke .5s"/>
+        <text x="60" y="55" text-anchor="middle" font-size="24" font-weight="500"
+          fill="#e8eaf0" font-family="'JetBrains Mono',monospace" id="h-dial-num">—</text>
+        <text x="60" y="72" text-anchor="middle" font-size="11"
+          fill="#555d75" font-family="'Inter',system-ui,sans-serif">/ 100</text>
+      </svg>
+      <div class="hs-score-info">
+        <p class="hs-score-eyebrow">Program health score</p>
+        <p class="hs-score-num" id="h-big-num">—</p>
+        <span class="hs-grade" id="h-grade"></span>
+        <p class="hs-verdict" id="h-verdict"></p>
+      </div>
+    </div>
+
+    <div class="pillars-grid" id="h-pillars"></div>
+    <div class="alerts" id="h-alerts"></div>
+
+    <div class="section">
+      <p class="section-label">CU usage per transaction</p>
+      <div class="chart-wrap"><canvas id="h-cu-chart" role="img" aria-label="Bar chart of compute units per transaction">CU per transaction.</canvas></div>
+    </div>
+
+  </div>
+</div>
+
+<div id="share-toast" class="share-toast">🔗 Link copied to clipboard!</div>
+
+<footer>
+  SolScope &mdash; Solana Program-Level Analytics &mdash;
+  Colosseum Frontier Hackathon 2026 &mdash;
+  Data from <a href="https://api.mainnet-beta.solana.com" target="_blank">Solana mainnet-beta</a>
+</footer>
+
+<script>
+// ═══════════════════════════════════════════
+// PAGE SWITCHER + URL SHARE
+// ═══════════════════════════════════════════
+function switchPage(id, tabEl) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  (tabEl || document.getElementById('tab-'+id)).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function shareLink(inputId, page) {
+  const addr = document.getElementById(inputId).value.trim();
+  if (!addr) return;
+  const url = `${location.origin}${location.pathname}?page=${page}&addr=${encodeURIComponent(addr)}`;
+  navigator.clipboard.writeText(url).then(() => {
+    const t = document.getElementById('share-toast');
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 2200);
+  });
+}
+
+// On load: restore from URL params
+window.addEventListener('DOMContentLoaded', () => {
+  const p = new URLSearchParams(location.search);
+  const page = p.get('page'), addr = p.get('addr');
+  if (page && addr) {
+    if (page === 'dashboard') {
+      switchPage('dashboard'); document.getElementById('d-addr').value = addr; runDashboard();
+    } else if (page === 'health') {
+      switchPage('health'); document.getElementById('h-addr').value = addr; runHealth();
+    }
+  }
+});
+
+// ═══════════════════════════════════════════
+// SHARED: INSTRUCTION DECODER
+// ═══════════════════════════════════════════
+const SPL_TOKEN_ADDR = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+const SPL_IX = {
+  0:'InitializeMint',1:'InitializeAccount',2:'InitializeMultisig',
+  3:'Transfer',4:'Approve',5:'Revoke',6:'SetAuthority',
+  7:'MintTo',8:'Burn',9:'CloseAccount',10:'FreezeAccount',
+  11:'ThawAccount',12:'TransferChecked',13:'ApproveChecked',
+  14:'MintToChecked',15:'BurnChecked',16:'InitializeAccount2',
+  17:'SyncNative',18:'InitializeAccount3',19:'InitializeMultisig2',
+  20:'InitializeMint2',21:'InitializeImmutableOwner'
+};
+
+const WHIRLPOOL_DISC = {
+  '208,127,21,1,194,190,196,70':'initialize_config','95,180,10,172,84,174,232,40':'initialize_pool',
+  '11,188,193,214,141,91,149,184':'initialize_tick_array','183,74,156,160,112,2,42,30':'initialize_fee_tier',
+  '135,128,47,77,15,152,240,49':'open_position','46,156,243,118,13,205,251,178':'increase_liquidity',
+  '160,38,208,111,104,91,44,1':'decrease_liquidity','164,152,207,99,30,186,19,182':'collect_fees',
+  '248,198,158,145,225,117,135,200':'swap','195,96,237,108,68,162,219,230':'two_hop_swap',
+  '123,134,81,0,49,68,98,98':'close_position','133,29,89,223,69,238,176,10':'increase_liquidity_v2',
+  '58,127,188,62,79,82,196,96':'decrease_liquidity_v2','43,4,237,11,26,201,30,98':'swap_v2',
+  '186,143,209,29,254,2,194,117':'two_hop_swap_v2','77,184,74,214,112,86,241,199':'open_position_v2'
+};
+
+const MARGINFI_DISC = {
+  '255,67,67,26,94,31,34,20':'marginfi_group_initialize','62,199,81,78,33,13,236,61':'marginfi_group_configure',
+  '215,68,72,78,208,218,103,182':'lending_pool_add_bank','43,78,61,255,148,52,249,154':'marginfi_account_initialize',
+  '171,94,235,103,82,64,212,140':'lending_account_deposit','79,209,172,177,222,51,173,151':'lending_account_repay',
+  '4,126,116,53,48,5,212,31':'lending_account_borrow','36,72,74,19,210,210,192,192':'lending_account_withdraw',
+  '214,169,151,213,251,167,86,219':'lending_account_liquidate','245,54,41,4,243,202,31,17':'lending_account_close_balance',
+  '14,131,33,220,81,186,180,107':'lending_account_start_flashloan','105,124,201,106,153,2,8,156':'lending_account_end_flashloan',
+  '186,221,93,34,50,97,194,241':'marginfi_account_close'
+};
+
+const ANCHOR_TABLES = {
+  'whirLbMiicVdio4qvUfM5KAg6Ebn8a1Wbr5yHhu9HuQ': WHIRLPOOL_DISC,
+  'MFv2hWf31Z9kbCa1snEPYctwafyhdvnV7FZnsebVacA': MARGINFI_DISC
+};
+
+function decodeIx(b64, prog) {
+  if (!b64) return null;
+  try {
+    const raw = atob(b64);
+    const bytes = Uint8Array.from(raw, c=>c.charCodeAt(0));
+    if (prog === SPL_TOKEN_ADDR) return SPL_IX[bytes[0]] || ('ix_'+bytes[0]);
+    const tbl = ANCHOR_TABLES[prog];
+    if (tbl && bytes.length >= 8) {
+      const key = Array.from(bytes.slice(0,8)).join(',');
+      return tbl[key] || ('ix_0x'+Array.from(bytes.slice(0,4)).map(b=>b.toString(16).padStart(2,'0')).join('')+'…');
+    }
+    if (bytes.length >= 4)
+      return 'ix_0x'+Array.from(bytes.slice(0,4)).map(b=>b.toString(16).padStart(2,'0')).join('')+'…';
+    return null;
+  } catch(e){ return null; }
+}
+
+// ── Helius tx type → friendly label ──
+// Helius Enhanced API returns a `type` field on each transaction.
+// We use this as the primary instruction name source — much more readable
+// than trying to decode raw bytes from a remapped format.
+function heliusTypeToLabel(type) {
+  if (!type || type === 'UNKNOWN') return null;
+  // Convert SCREAMING_SNAKE to Title Case
+  return type.split('_').map(w => w.charAt(0)+w.slice(1).toLowerCase()).join(' ');
+}
+
+// ═══════════════════════════════════════════
+// SHARED: FETCH PIPELINE
+// ═══════════════════════════════════════════
+const HELIUS_KEY = '2e646216-edd9-4a89-8f1d-f5c123497594';
+const BAR_COLORS = ['#378ADD','#1D9E75','#BA7517','#D4537E','#7F77DD','#D85A30'];
+
+function skelShow(id){ document.getElementById(id).classList.add('active'); }
+function skelHide(id){ document.getElementById(id).classList.remove('active'); }
+
+async function fetchTxns(addr, statusEl, btnEl, skelEl) {
+  document.getElementById(btnEl).disabled = true;
+  const setS = m => document.getElementById(statusEl).textContent = m;
+  if (skelEl) skelShow(skelEl);
+  setS('Fetching from Helius...');
+
+  try {
+    const res = await fetch(
+      `https://api-mainnet.helius-rpc.com/v0/addresses/${addr}/transactions/?api-key=${HELIUS_KEY}&limit=50`
+    );
+    const data = await res.json();
+
+    if (!Array.isArray(data)) {
+      setS('Error: ' + (data?.error || JSON.stringify(data)));
+      if (skelEl) skelHide(skelEl);
+      document.getElementById(btnEl).disabled = false;
+      return null;
+    }
+    if (data.length === 0) {
+      setS('No transactions found for this program address.');
+      if (skelEl) skelHide(skelEl);
+      document.getElementById(btnEl).disabled = false;
+      return null;
+    }
+
+    setS(`Fetched ${data.length} transactions — parsing...`);
+    if (skelEl) skelHide(skelEl);
+    document.getElementById(btnEl).disabled = false;
+
+    // Remap Helius Enhanced format → internal shape
+    // Key improvement: store _helius.type for human-readable instruction names
+    const txns = data.map(tx => {
+      const accountKeys = [
+        tx.feePayer,
+        ...(tx.accountData || []).map(a => a.account).filter(a => a && a !== tx.feePayer)
+      ];
+      const instructions = (tx.instructions || []).map(ix => {
+        let idx = accountKeys.indexOf(ix.programId);
+        if (idx === -1){ accountKeys.push(ix.programId); idx = accountKeys.length-1; }
+        return { programIdIndex: idx, data: ix.data||'', accounts: (ix.accounts||[]).map(a=>accountKeys.indexOf(a)) };
+      });
+      const innerInstructions = (tx.instructions||[])
+        .filter(ix=>ix.innerInstructions&&ix.innerInstructions.length)
+        .map((ix,i)=>({
+          index:i,
+          instructions:(ix.innerInstructions||[]).map(inner=>{
+            let idx=accountKeys.indexOf(inner.programId);
+            if(idx===-1){accountKeys.push(inner.programId);idx=accountKeys.length-1;}
+            return {programIdIndex:idx,data:inner.data||'',accounts:(inner.accounts||[]).map(a=>accountKeys.indexOf(a))};
+          })
+        }));
+
+      // ✅ DAY 1 FIX: use computeUnits from nativeTransfers + tokenTransfers context
+      // Helius Enhanced exposes fee in lamports; computeUnitsConsumed is in the events
+      const computeUnitsConsumed = tx.events?.compressed?.computeUnitsConsumed
+        ?? tx.meta?.computeUnitsConsumed
+        ?? null;
+
+      return {
+        signature: tx.signature,
+        _type: tx.type || 'UNKNOWN',           // ← Helius human-readable type
+        _source: tx.source || '',               // ← e.g. "ORCA", "MARGINFI"
+        _fee: tx.fee ?? null,
+        transaction: { message: { accountKeys, instructions } },
+        meta: {
+          err: tx.transactionError || null,
+          computeUnitsConsumed,
+          fee: tx.fee ?? null,
+          innerInstructions
+        },
+        _helius: tx
+      };
+    });
+
+    return { txns, sigs: data.map(tx=>tx.signature), raw: data };
+  } catch(e) {
+    setS('Error: ' + e.message);
+    if (skelEl) skelHide(skelEl);
+    document.getElementById(btnEl).disabled = false;
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════
+// SHARED: PARSE TRANSACTIONS
+// ═══════════════════════════════════════════
+function parseTxns(addr, txns) {
+  const ixFreq={}, callers=new Set(), ixPatterns=new Set();
+  let errors=0, totalCU=0, cuArr=[], cuColors=[];
+
+  txns.forEach(tx=>{
+    if (!tx||!tx.transaction) return;
+    const isErr = tx.meta && tx.meta.err!==null;
+    if (isErr) errors++;
+
+    // ✅ DAY 1: prefer computeUnitsConsumed, fall back to fee
+    const cu = tx.meta?.computeUnitsConsumed ?? tx._fee ?? null;
+    if (cu!=null){ totalCU+=cu; cuArr.push(cu); cuColors.push(isErr?'#E24B4A':'#1D9E75'); }
+
+    const accounts = tx.transaction.message.accountKeys||[];
+    if (accounts[0]) callers.add(accounts[0]);
+
+    // ✅ DAY 1: use Helius `type` as primary instruction name
+    const heliusLabel = heliusTypeToLabel(tx._type);
+
+    const outer = tx.transaction.message.instructions||[];
+    let foundOuter = false;
+    outer.forEach(ix=>{
+      const progAddr = accounts[ix.programIdIndex];
+      if (progAddr !== addr) return;
+      foundOuter = true;
+      if (ix.data) ixPatterns.add(ix.data.slice(0,12));
+      // Use helius type first, then fall back to byte decoder
+      const name = heliusLabel || decodeIx(ix.data, addr) || 'unknown';
+      ixFreq[name]=(ixFreq[name]||0)+1;
+    });
+
+    // If not found in outer, check inner (CPI calls)
+    if (!foundOuter) {
+      const inner = (tx.meta&&tx.meta.innerInstructions)||[];
+      inner.forEach(grp=>{
+        (grp.instructions||[]).forEach(ix=>{
+          const progAddr = accounts[ix.programIdIndex];
+          if (progAddr !== addr) return;
+          if (ix.data) ixPatterns.add(ix.data.slice(0,12));
+          const name = (heliusLabel ? heliusLabel+' (cpi)' : null) || decodeIx(ix.data, addr) || 'unknown (cpi)';
+          ixFreq[name]=(ixFreq[name]||0)+1;
+        });
+      });
+    }
+  });
+
+  const total = txns.length;
+  const avgCU = cuArr.length ? Math.round(totalCU/cuArr.length) : 0;
+  const successRate = total ? Math.round(((total-errors)/total)*100) : 0;
+  return { ixFreq, callers, ixPatterns, errors, cuArr, cuColors, total, avgCU, successRate };
+}
+
+// ═══════════════════════════════════════════
+// FEATURE 1: USAGE DASHBOARD
+// ═══════════════════════════════════════════
+let dChart = null;
+function dPick(a){ document.getElementById('d-addr').value=a; runDashboard(); }
+function dShow(id){ document.getElementById(id).classList.remove('hidden'); }
+function dHide(id){ document.getElementById(id).classList.add('hidden'); }
+
+async function runDashboard() {
+  const addr = document.getElementById('d-addr').value.trim();
+  if (!addr){ document.getElementById('d-status').textContent='Please enter a program address.'; return; }
+  ['d-metrics','d-ix-section','d-chart-section','d-tx-section'].forEach(dHide);
+  if (dChart){ dChart.destroy(); dChart=null; }
+  try {
+    const result = await fetchTxns(addr,'d-status','d-btn','d-skeleton');
+    if (!result) return;
+    const { txns, sigs } = result;
+    if (!txns.length){ document.getElementById('d-status').textContent='No transactions returned.'; return; }
+    const p = parseTxns(addr, txns);
+    renderDashboard(addr, txns, sigs, p);
+    document.getElementById('d-status').textContent = 'Done — analyzed '+p.total+' transactions. Click any signature to open on Solscan.';
+  } catch(e){ document.getElementById('d-status').textContent='Error: '+e.message; document.getElementById('d-btn').disabled=false; }
+}
+
+function renderDashboard(addr, txns, sigs, p) {
+  document.getElementById('d-m-total').textContent = p.total;
+  document.getElementById('d-m-success').textContent = p.successRate+'%';
+  document.getElementById('d-m-errsub').textContent = p.errors+' error'+(p.errors!==1?'s':'');
+  document.getElementById('d-m-callers').textContent = p.callers.size;
+  document.getElementById('d-m-cu').textContent = p.avgCU>=1000?(p.avgCU/1000).toFixed(1)+'K':p.avgCU;
+  dShow('d-metrics');
+
+  const sorted = Object.entries(p.ixFreq).sort((a,b)=>b[1]-a[1]);
+  const maxC = sorted[0]?sorted[0][1]:1;
+  const barsEl = document.getElementById('d-ix-bars');
+  barsEl.innerHTML = sorted.length===0
+    ? '<p class="empty-note">No instructions decoded for this program in these transactions.</p>'
+    : sorted.map(([name,count],i)=>`
+        <div class="bar-row">
+          <span class="bar-name" title="${name}">${name}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.round((count/maxC)*100)}%;background:${BAR_COLORS[i%BAR_COLORS.length]}"></div></div>
+          <span class="bar-count">${count}</span>
+        </div>`).join('');
+  dShow('d-ix-section');
+
+  if (p.cuArr.length) {
+    const ctx = document.getElementById('d-cu-chart').getContext('2d');
+    dChart = new Chart(ctx,{type:'bar',data:{
+      labels:p.cuArr.map((_,i)=>'#'+(i+1)),
+      datasets:[{label:'CU',data:p.cuArr,backgroundColor:p.cuColors,borderWidth:0,borderRadius:3}]
+    },options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'CU: '+c.raw.toLocaleString(),title:c=>'Tx '+c[0].label}}},
+      scales:{x:{display:false},y:{ticks:{font:{size:10},color:'#555d75',callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v},
+        grid:{color:'rgba(255,255,255,0.04)'},border:{display:false}}}
+    }});
+    dShow('d-chart-section');
+  }
+
+  const rowsEl = document.getElementById('d-tx-rows');
+  rowsEl.innerHTML = '';
+  txns.slice(0,20).forEach((tx,i)=>{
+    if (!tx||!tx.transaction) return;
+    const sig=sigs[i]||'', short=sig.slice(0,8)+'…'+sig.slice(-4);
+    const isErr = tx.meta&&tx.meta.err!==null;
+    const cu = tx.meta&&tx.meta.computeUnitsConsumed!=null ? tx.meta.computeUnitsConsumed.toLocaleString()
+              : tx._fee!=null ? tx._fee.toLocaleString()+' (fee)' : '—';
+
+    // ✅ DAY 1: use Helius type as instruction name in the table
+    const heliusLabel = heliusTypeToLabel(tx._type);
+    const accounts=tx.transaction.message.accountKeys||[];
+    const allIxs=tx.transaction.message.instructions||[];
+    const progIx=allIxs.find(ix=>accounts[ix.programIdIndex]===addr);
+    let ixName = heliusLabel || '—';
+    if (!heliusLabel) {
+      if (progIx) { ixName=decodeIx(progIx.data,addr)||'—'; }
+      else {
+        const inner=(tx.meta&&tx.meta.innerInstructions)||[];
+        for (const grp of inner){ const f=(grp.instructions||[]).find(ix=>accounts[ix.programIdIndex]===addr); if(f){ixName=(decodeIx(f.data,addr)||'—')+' (cpi)';break;} }
+      }
+    }
+    // Show source chip (e.g. ORCA, MARGINFI) if available
+    const sourceChip = tx._source && tx._source !== 'UNKNOWN'
+      ? `<span class="type-chip">${tx._source}</span>` : '';
+
+    rowsEl.innerHTML+=`<div class="tx-row">
+      <a class="tx-sig" href="https://solscan.io/tx/${sig}" target="_blank" title="${sig}">${short}</a>
+      <span class="tx-ix">${ixName}${sourceChip}</span>
+      <span><span class="badge ${isErr?'badge-err':'badge-ok'}">${isErr?'error':'ok'}</span></span>
+      <span class="tx-cu">${cu}</span></div>`;
+  });
+  dShow('d-tx-section');
+}
+
+// ═══════════════════════════════════════════
+// FEATURE 2: ECOSYSTEM EXPLORER
+// ═══════════════════════════════════════════
+let eChart = null;
+function ePick(a1,a2){
+  document.getElementById('e-addr1').value=a1;
+  document.getElementById('e-addr2').value=a2;
+  runExplorer();
+}
+
+async function runExplorer() {
+  const addr1 = document.getElementById('e-addr1').value.trim();
+  const addr2 = document.getElementById('e-addr2').value.trim();
+  const setS = m => document.getElementById('e-status').textContent = m;
+  if (!addr1||!addr2){ setS('Please enter both program addresses.'); return; }
+  if (addr1===addr2){ setS('Please enter two different program addresses.'); return; }
+
+  document.getElementById('e-result').classList.add('hidden');
+  document.getElementById('e-btn').disabled = true;
+  if (eChart){ eChart.destroy(); eChart=null; }
+  skelShow('e-skeleton');
+  setS('Fetching both programs from Helius...');
+
+  try {
+    const [r1, r2] = await Promise.all([
+      fetch(`https://api-mainnet.helius-rpc.com/v0/addresses/${addr1}/transactions/?api-key=${HELIUS_KEY}&limit=50`).then(r=>r.json()),
+      fetch(`https://api-mainnet.helius-rpc.com/v0/addresses/${addr2}/transactions/?api-key=${HELIUS_KEY}&limit=50`).then(r=>r.json())
+    ]);
+    skelHide('e-skeleton');
+    document.getElementById('e-btn').disabled = false;
+
+    if (!Array.isArray(r1)||!Array.isArray(r2)){
+      setS('Error fetching one or both programs. Check addresses and try again.');
+      return;
+    }
+
+    // Parse both using a lightweight inline parser (no remapping needed for compare)
+    function quickParse(raw) {
+      let errors=0, totalCU=0, cuArr=[], callers=new Set();
+      raw.forEach(tx=>{
+        if (tx.transactionError) errors++;
+        const cu = tx.fee ?? null;
+        if (cu!=null){ totalCU+=cu; cuArr.push(cu); }
+        if (tx.feePayer) callers.add(tx.feePayer);
+      });
+      const total=raw.length, avgCU=cuArr.length?Math.round(totalCU/cuArr.length):0;
+      const successRate=total?Math.round(((total-errors)/total)*100):0;
+
+      // Count types
+      const typeFreq={};
+      raw.forEach(tx=>{ const t=heliusTypeToLabel(tx.type)||'Unknown'; typeFreq[t]=(typeFreq[t]||0)+1; });
+
+      return { total, errors, successRate, avgCU, callers, cuArr, typeFreq };
+    }
+
+    const p1=quickParse(r1), p2=quickParse(r2);
+    setS(`Compared ${p1.total} + ${p2.total} transactions.`);
+    renderExplorer(addr1, addr2, p1, p2);
+  } catch(e){
+    skelHide('e-skeleton');
+    document.getElementById('e-btn').disabled=false;
+    setS('Error: '+e.message);
+  }
+}
+
+function renderExplorer(addr1, addr2, p1, p2) {
+  const short = a => a.slice(0,6)+'…'+a.slice(-4);
+
+  function statsHTML(p, other) {
+    const succ = p.successRate >= other.successRate ? 'better':'worse';
+    const cu   = p.avgCU <= other.avgCU ? 'better':'worse';
+    const cal  = p.callers.size >= other.callers.size ? 'better':'worse';
+
+    const topTypes = Object.entries(p.typeFreq).sort((a,b)=>b[1]-a[1]).slice(0,3);
+    return `
+      <div class="compare-stat">
+        <span class="compare-stat-label">Transactions sampled</span>
+        <span class="compare-stat-val">${p.total}</span>
+      </div>
+      <div class="compare-stat">
+        <span class="compare-stat-label">Success rate</span>
+        <span class="compare-stat-val ${succ}">${p.successRate}%</span>
+      </div>
+      <div class="compare-stat">
+        <span class="compare-stat-label">Avg fee (lamports)</span>
+        <span class="compare-stat-val ${cu}">${p.avgCU>=1000?(p.avgCU/1000).toFixed(1)+'K':p.avgCU}</span>
+      </div>
+      <div class="compare-stat">
+        <span class="compare-stat-label">Unique callers</span>
+        <span class="compare-stat-val ${cal}">${p.callers.size}</span>
+      </div>
+      <div class="compare-stat">
+        <span class="compare-stat-label">Error count</span>
+        <span class="compare-stat-val ${p.errors===0?'better':p.errors>other.errors?'worse':''}">${p.errors}</span>
+      </div>
+      <div class="compare-stat" style="flex-direction:column;align-items:flex-start;gap:6px">
+        <span class="compare-stat-label">Top instruction types</span>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--text2);line-height:1.8">
+          ${topTypes.map(([t,c])=>`${t} <span style="color:var(--text3)">(${c})</span>`).join('<br>')||'—'}
+        </span>
+      </div>`;
+  }
+
+  // Determine winner
+  let score1=0, score2=0;
+  if (p1.successRate>p2.successRate) score1++; else if (p2.successRate>p1.successRate) score2++;
+  if (p1.avgCU<p2.avgCU) score1++; else if (p2.avgCU<p1.avgCU) score2++;
+  if (p1.callers.size>p2.callers.size) score1++; else if (p2.callers.size>p1.callers.size) score2++;
+
+  const winnerLabel = score1>score2 ? short(addr1) : score2>score1 ? short(addr2) : null;
+
+  document.getElementById('e-panels').innerHTML = `
+    <div class="compare-panel">
+      <div class="compare-panel-head">Program A</div>
+      <div class="addr-label">${addr1}</div>
+      ${statsHTML(p1,p2)}
+    </div>
+    <div class="compare-panel">
+      <div class="compare-panel-head">Program B</div>
+      <div class="addr-label">${addr2}</div>
+      ${statsHTML(p2,p1)}
+    </div>`;
+
+  // Append winner card
+  const winnerDiv = document.createElement('div');
+  winnerDiv.className = 'compare-winner';
+  winnerDiv.innerHTML = winnerLabel
+    ? `<p>Overall edge: <strong>${winnerLabel}</strong> leads on ${score1>score2?score1:score2} of 3 metrics</p>`
+    : `<p>It's a <strong>tie</strong> — both programs are evenly matched across the measured metrics</p>`;
+  document.getElementById('e-panels').after(winnerDiv);
+
+  // Chart: overlay CU distributions
+  const maxLen = Math.max(p1.cuArr.length, p2.cuArr.length);
+  const labels = Array.from({length:maxLen},(_,i)=>'#'+(i+1));
+  if (maxLen > 0) {
+    const ctx = document.getElementById('e-chart').getContext('2d');
+    eChart = new Chart(ctx, {type:'bar', data:{
+      labels,
+      datasets:[
+        {label:'Program A',data:p1.cuArr,backgroundColor:'rgba(55,138,221,.6)',borderWidth:0,borderRadius:2},
+        {label:'Program B',data:p2.cuArr,backgroundColor:'rgba(29,158,117,.6)',borderWidth:0,borderRadius:2}
+      ]
+    },options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#8b92a8',font:{size:11}}},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.raw.toLocaleString()+' lam'}}},
+      scales:{x:{display:false},y:{ticks:{font:{size:10},color:'#555d75',callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v},
+        grid:{color:'rgba(255,255,255,0.04)'},border:{display:false}}}
+    }});
+    document.getElementById('e-chart-section').classList.remove('hidden');
+  }
+
+  document.getElementById('e-result').classList.remove('hidden');
+}
+
+// ═══════════════════════════════════════════
+// FEATURE 4: HEALTH SCORE
+// ═══════════════════════════════════════════
+let hChart = null;
+function hPick(a){ document.getElementById('h-addr').value=a; runHealth(); }
+
+async function runHealth() {
+  const addr = document.getElementById('h-addr').value.trim();
+  if (!addr){ document.getElementById('h-status').textContent='Please enter a program address.'; return; }
+  document.getElementById('h-result').classList.add('hidden');
+  if (hChart){ hChart.destroy(); hChart=null; }
+  // Reset dial for animation
+  document.getElementById('h-dial-fill').setAttribute('stroke-dashoffset','314');
+  try {
+    const result = await fetchTxns(addr,'h-status','h-btn','h-skeleton');
+    if (!result) return;
+    const { txns } = result;
+    const p = parseTxns(addr, txns);
+    renderHealth(addr, txns, p);
+    document.getElementById('h-status').textContent = 'Done — health score computed from '+p.total+' transactions.';
+  } catch(e){ document.getElementById('h-status').textContent='Error: '+e.message; document.getElementById('h-btn').disabled=false; }
+}
+
+function renderHealth(addr, txns, p) {
+  if (!p.total){ document.getElementById('h-status').textContent='No transactions returned.'; document.getElementById('h-btn').disabled=false; return; }
+
+  const p1 = Math.round((p.successRate/100)*25);
+  const cuRatio = Math.min(p.avgCU/200000,1);
+  const p2 = Math.round((1-cuRatio)*25);
+  const p3 = Math.min(Math.round((p.callers.size/p.total)*25),25);
+  const p4 = Math.min(Math.round((p.ixPatterns.size/8)*25),25);
+  const score = p1+p2+p3+p4;
+
+  let grade,gradeColor,gradeBg,verdict;
+  if (score>=85){grade='Excellent';gradeColor='#085041';gradeBg='rgba(29,158,117,.15)';verdict='Strong health across all dimensions — high reliability, efficient compute, diverse callers, and rich instruction patterns.';}
+  else if (score>=70){grade='Good';gradeColor='#085041';gradeBg='rgba(29,158,117,.15)';verdict='Solid health overall. A few areas can be improved — check the pillar breakdown below.';}
+  else if (score>=50){grade='Fair';gradeColor='#633806';gradeBg='rgba(186,117,23,.15)';verdict='Moderate health. Some signals warrant attention — review the alerts below carefully.';}
+  else if (score>=30){grade='Weak';gradeColor='#791F1F';gradeBg='rgba(226,75,74,.15)';verdict='Stress signals across multiple dimensions. Investigate before relying on this program.';}
+  else{grade='Critical';gradeColor='#791F1F';gradeBg='rgba(226,75,74,.15)';verdict='Significant issues detected. Error rate or compute usage is very high. Needs urgent attention.';}
+
+  const dialColor = score>=70?'#1D9E75':score>=50?'#BA7517':'#E24B4A';
+  const circ=314, offset=Math.round(circ-(score/100)*circ);
+
+  // ✅ DAY 4: animate dial — start at 314 (empty), transition to target
+  document.getElementById('h-result').classList.remove('hidden');
+  requestAnimationFrame(()=>{
+    requestAnimationFrame(()=>{
+      document.getElementById('h-dial-fill').setAttribute('stroke-dashoffset',offset);
+      document.getElementById('h-dial-fill').setAttribute('stroke',dialColor);
+    });
+  });
+
+  document.getElementById('h-dial-num').textContent=score;
+  const bigNum=document.getElementById('h-big-num');
+  bigNum.textContent=score; bigNum.style.color=dialColor;
+  const gradeEl=document.getElementById('h-grade');
+  gradeEl.textContent=grade; gradeEl.style.background=gradeBg; gradeEl.style.color=gradeColor;
+  document.getElementById('h-verdict').textContent=verdict;
+
+  const pillars=[
+    {label:'Success rate',score:p1,max:25,sub:p.successRate+'% transactions ok',color:'#1D9E75'},
+    {label:'CU efficiency',score:p2,max:25,sub:'avg '+(p.avgCU>=1000?(p.avgCU/1000).toFixed(0)+'K':p.avgCU)+' fee/tx',color:'#378ADD'},
+    {label:'Caller diversity',score:p3,max:25,sub:p.callers.size+' unique wallets',color:'#7F77DD'},
+    {label:'Instruction variety',score:p4,max:25,sub:p.ixPatterns.size+' distinct patterns',color:'#BA7517'}
+  ];
+  document.getElementById('h-pillars').innerHTML=pillars.map(pl=>`
+    <div class="pillar">
+      <p class="pillar-label">${pl.label}</p>
+      <p class="pillar-score" style="color:${pl.color}">${pl.score}<span style="font-size:13px;color:var(--text3)">/${pl.max}</span></p>
+      <div class="pillar-bar"><div class="pillar-fill" style="width:${Math.round((pl.score/pl.max)*100)}%;background:${pl.color}"></div></div>
+      <p class="pillar-sub">${pl.sub}</p>
+    </div>`).join('');
+
+  const alerts=[];
+  if (p.errors/p.total>0.1) alerts.push({t:'warn',icon:'!',title:'High error rate',msg:p.errors+' of '+p.total+' transactions failed ('+Math.round((p.errors/p.total)*100)+'%). Investigate common failure patterns.'});
+  else alerts.push({t:'ok',icon:'✓',title:'Low error rate',msg:'Only '+p.errors+' failures in '+p.total+' transactions — reliability looks good.'});
+  if (p.avgCU>150000) alerts.push({t:'warn',icon:'!',title:'High compute usage',msg:'Average '+(p.avgCU/1000).toFixed(0)+'K fee per transaction. Consider optimizing hot instruction paths.'});
+  else alerts.push({t:'ok',icon:'✓',title:'Efficient compute',msg:'Avg '+(p.avgCU>=1000?(p.avgCU/1000).toFixed(0)+'K':p.avgCU)+' fee is within a healthy range.'});
+  if (p.callers.size<3) alerts.push({t:'warn',icon:'!',title:'Low caller diversity',msg:'Only '+p.callers.size+' unique wallet(s) in the sample. Could indicate low adoption or a controlled test.'});
+  else alerts.push({t:'info',icon:'i',title:'Caller activity',msg:p.callers.size+' unique wallets across '+p.total+' sampled transactions.'});
+  const spikes=p.cuArr.filter(c=>c>p.avgCU*2).length;
+  if (spikes>0) alerts.push({t:'warn',icon:'!',title:'Fee spikes detected',msg:spikes+' transaction(s) paid more than 2× average fee — possible priority fee usage.'});
+  const typeMap={warn:'alert-warn',ok:'alert-ok',info:'alert-info'};
+  document.getElementById('h-alerts').innerHTML=alerts.map(a=>`
+    <div class="alert ${typeMap[a.t]}">
+      <span class="alert-icon">${a.icon}</span>
+      <span class="alert-text"><strong>${a.title}:</strong> ${a.msg}</span>
+    </div>`).join('');
+
+  const ctx=document.getElementById('h-cu-chart').getContext('2d');
+  hChart=new Chart(ctx,{type:'bar',data:{
+    labels:p.cuArr.map((_,i)=>'#'+(i+1)),
+    datasets:[{label:'Fee',data:p.cuArr,backgroundColor:p.cuColors,borderWidth:0,borderRadius:3}]
+  },options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'Fee: '+c.raw.toLocaleString()+' lam',title:c=>'Tx '+c[0].label}}},
+    scales:{x:{display:false},y:{ticks:{font:{size:10},color:'#555d75',callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v},
+      grid:{color:'rgba(255,255,255,0.04)'},border:{display:false}}}
+  }});
+}
+</script>
+
+</body>
+</html>
